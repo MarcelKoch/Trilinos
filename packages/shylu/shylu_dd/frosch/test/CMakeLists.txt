@@ -1,8 +1,11 @@
 ADD_SUBDIRECTORIES(
+    Ginkgo
+    GraphTools
     Import_Tpetra
     InterfacePartitionOfUnity
     InterfaceSets
     LocalPartitionOfUnityBasis
+#    ModularSchwarzPreconditioner
     SolverFactory
 )
 

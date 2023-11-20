@@ -1,0 +1,22 @@
+TRIBITS_ADD_EXECUTABLE(
+ginkgo
+SOURCES main.cpp
+)
+
+IF(HAVE_SHYLU_DDFROSCH_EPETRA AND NOT Tpetra_DefaultNode STREQUAL "Tpetra::KokkosCompat::KokkosCudaWrapperNode")
+TRIBITS_ADD_TEST(
+ginkgo
+NAME test_ginkgo_EPETRA
+ARGS "--USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 1
+)
+ENDIF()
+
+TRIBITS_ADD_TEST(
+ginkgo
+NAME test_ginkgo_TPETRA
+ARGS "--USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 1
+)
