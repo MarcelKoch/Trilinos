@@ -70,7 +70,9 @@
 #include <FROSch_ThyraPreconditioner_def.hpp>
 #include <FROSch_ThyraSolver_def.hpp>
 #endif
-
+#ifdef HAVE_SHYLU_DDFROSCH_GINKGO
+#include <FROSch_GinkgoSolver_def.hpp>
+#endif
 
 namespace FROSch {
 
@@ -115,9 +117,11 @@ namespace FROSch {
         using ThyraPreconditionerPtr            = RCP<ThyraPreconditioner<SC,LO,GO,NO> >;
         using ThyraSolverPtr                    = RCP<ThyraSolver<SC,LO,GO,NO> >;
 #endif
+#ifdef HAVE_SHYLU_DDFROSCH_GINKGO
+        using GinkgoSolverPtr = RCP<GinkgoSolver<SC, LO, GO, NO>>;
+#endif
 
-    public:
-
+      public:
         static SolverPtr Build(ConstXMatrixPtr k,
                                ParameterListPtr parameterList,
                                string description);

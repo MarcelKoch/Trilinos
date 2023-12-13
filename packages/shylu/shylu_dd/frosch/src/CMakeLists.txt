@@ -133,6 +133,8 @@ APPEND_SET(HEADERS
   SolverInterfaces/FROSch_BelosSolverTpetra_def.hpp
   SolverInterfaces/FROSch_FROSchPreconditioner_decl.hpp
   SolverInterfaces/FROSch_FROSchPreconditioner_def.hpp
+           SolverInterfaces/FROSch_GinkgoSolver_decl.hpp
+           SolverInterfaces/FROSch_GinkgoSolver_def.hpp
   SolverInterfaces/FROSch_Ifpack2PreconditionerTpetra_decl.hpp
   SolverInterfaces/FROSch_Ifpack2PreconditionerTpetra_def.hpp
   SolverInterfaces/FROSch_MueLuPreconditioner_decl.hpp
