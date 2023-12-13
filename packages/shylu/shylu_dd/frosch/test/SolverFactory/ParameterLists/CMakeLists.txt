@@ -8,6 +8,7 @@ DEST_FILES ParameterList_Amesos_Klu.xml
            ParameterList_MueLu.xml
            ParameterList_ThyraPreconditioner_FROSch_OneLevelPreconditioner.xml
            ParameterList_ThyraSolver_Belos_GMRES.xml
+                                 ParameterList_GinkgoSolver.xml
 SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
 DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}
 EXEDEPS solverfactory
