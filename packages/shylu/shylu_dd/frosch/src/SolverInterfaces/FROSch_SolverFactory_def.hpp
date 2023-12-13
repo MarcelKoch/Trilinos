@@ -126,12 +126,16 @@ namespace FROSch {
         } else if (!solverType.compare("ThyraSolver")) {
 #ifdef HAVE_SHYLU_DDFROSCH_THYRA
 #ifdef HAVE_SHYLU_DDFROSCH_STRATIMIKOS
-            return ThyraSolverPtr(new ThyraSolver<SC,LO,GO,NO>(k,parameterList,description));
+          return ThyraSolverPtr(new ThyraSolver<SC,LO,GO,NO>(k,parameterList,description));
 #else
-            ThrowErrorMissingPackage("FROSch::SolverFactory","Stratimikos");
+          ThrowErrorMissingPackage("FROSch::SolverFactory","Stratimikos");
 #endif
 #else
-            ThrowErrorMissingPackage("FROSch::SolverFactory","Thyra");
+          ThrowErrorMissingPackage("FROSch::SolverFactory","Thyra");
+#endif
+#ifdef HAVE_SHYLU_DDFROSCH_GINKGO
+        } else if(!solverType.compare("GinkgoSolver")) {
+          return GinkgoSolverPtr(new GinkgoSolver<SC,LO,GO,NO>(k, parameterList, description));
 #endif
         } else {
             FROSCH_ASSERT(false,"SolverType unknown...");
