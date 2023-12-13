@@ -310,3 +310,41 @@ COMM mpi
 NUM_MPI_PROCS 8
 )
 ENDIF()
+
+###########################
+# GinkgoSolver #
+###########################
+IF(HAVE_SHYLU_DDFROSCH_GINKGO)
+  ## Epetra
+  IF(HAVE_SHYLU_DDFROSCH_EPETRA AND NOT Tpetra_DefaultNode STREQUAL "Tpetra::KokkosCompat::KokkosCudaWrapperNode")
+    TRIBITS_ADD_TEST(
+      solverfactory
+      NAME test_solverfactory_ginkgosolver_DIM2_EPETRA
+      ARGS "--DIM=2 --PLIST=ParameterLists/ParameterList_GinkgoSolver.xml --USEEPETRA"
+      COMM mpi
+      NUM_MPI_PROCS 1
+    )
+    TRIBITS_ADD_TEST(
+      solverfactory
+      NAME test_solverfactory_ginkgosolver_DIM3_EPETRA
+      ARGS "--DIM=3 --PLIST=ParameterLists/ParameterList_GinkgoSolver.xml --USEEPETRA"
+      COMM mpi
+      NUM_MPI_PROCS 1
+    )
+  ENDIF()
+  ##Tpetra
+  TRIBITS_ADD_TEST(
+    solverfactory
+    NAME test_solverfactory_ginkgosolver_DIM2_TPETRA
+    ARGS "--DIM=2 --PLIST=ParameterLists/ParameterList_GinkgoSolver.xml --USETPETRA"
+    COMM mpi
+    NUM_MPI_PROCS 1
+  )
+  TRIBITS_ADD_TEST(
+    solverfactory
+    NAME test_solverfactory_ginkgosolver_DIM3_TPETRA
+    ARGS "--DIM=3 --PLIST=ParameterLists/ParameterList_GinkgoSolver.xml --USETPETRA"
+    COMM mpi
+    NUM_MPI_PROCS 1
+  )
+ENDIF()
