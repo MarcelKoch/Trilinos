@@ -118,7 +118,6 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
     ArrayView<const LO> indices;
     ArrayView<const SC> values;
     this->K_->getLocalRowView(i, indices, values);
-    std::cout << i << " " << indices << " " << values << std::endl;
     for (size_t j = 0; j < indices.size(); j++) {
       mdK.set_value(i, indices[j], values[j]);
     }
