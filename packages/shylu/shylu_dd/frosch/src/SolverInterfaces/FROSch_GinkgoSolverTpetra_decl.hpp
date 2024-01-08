@@ -65,6 +65,8 @@ protected:
   using XMatrixPtr = typename Solver<SC, LO, GO, NO>::XMatrixPtr;
   using ConstXMatrixPtr = typename Solver<SC, LO, GO, NO>::ConstXMatrixPtr;
 
+  using XMap = typename Solver<SC, LO, GO, NO>::XMap;
+
   using XMultiVector = typename Solver<SC, LO, GO, NO>::XMultiVector;
   using XMultiVectorPtr = typename Solver<SC, LO, GO, NO>::XMultiVectorPtr;
   using ConstXMultiVectorPtr =
