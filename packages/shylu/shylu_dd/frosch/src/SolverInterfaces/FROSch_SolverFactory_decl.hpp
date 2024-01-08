@@ -71,7 +71,7 @@
 #include <FROSch_ThyraSolver_def.hpp>
 #endif
 #ifdef HAVE_SHYLU_DDFROSCH_GINKGO
-#include <FROSch_GinkgoSolver_def.hpp>
+#include <FROSch_GinkgoSolverTpetra_def.hpp>
 #endif
 
 namespace FROSch {

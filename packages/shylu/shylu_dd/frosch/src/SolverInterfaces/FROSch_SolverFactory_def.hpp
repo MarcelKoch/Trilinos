@@ -135,6 +135,9 @@ namespace FROSch {
 #endif
 #ifdef HAVE_SHYLU_DDFROSCH_GINKGO
         } else if(!solverType.compare("GinkgoSolver")) {
+          FROSCH_ASSERT(
+              k->getRowMap()->lib() == UseTpetra,
+              "FROSch::SolverFactory: Ginkgo is not compatible with Epetra.");
           return GinkgoSolverPtr(new GinkgoSolver<SC,LO,GO,NO>(k, parameterList, description));
 #endif
         } else {
