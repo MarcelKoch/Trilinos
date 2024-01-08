@@ -211,6 +211,14 @@ int main(int argc, char *argv[])
 
         FROSchSolverInterface->apply(*xRightHandSide,*xSolution);
 
+        K->apply(*xSolution, *xRightHandSide, Teuchos::NO_TRANS,
+                 Teuchos::ScalarTraits<SC>::one(),
+                 -Teuchos::ScalarTraits<SC>::one());
+        Teuchos::Array<Teuchos::ScalarTraits<SC>::magnitudeType> res_norm(1);
+        xRightHandSide->norm2(res_norm);
+        if (Comm->getRank() == 0)
+          cout << "Norm Residual: " << res_norm.at(0) << endl;
+
         Comm->barrier(); if (Comm->getRank()==0) cout << "\n#############\n# Finished! #\n#############" << endl;
     }
 
