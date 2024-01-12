@@ -283,12 +283,12 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
   ArrayRCP<const SC> valuesx = x.getData(0);
   using Vec = gko::matrix::Dense<SC>;
   auto gko_x = Vec::create_const(
-      host_exec, gko::dim<2>{valuesx.size(), 1},
+      exec, gko::dim<2>{valuesx.size(), 1},
       gko::make_const_array_view(host_exec, valuesx.size(), valuesx.get()), 1);
 
   ArrayRCP<SC> valuesy = y.getDataNonConst(0);
   auto gko_y = Vec::create(
-      host_exec, gko::dim<2>{valuesy.size(), 1},
+      exec, gko::dim<2>{valuesy.size(), 1},
       gko::make_array_view(host_exec, valuesy.size(), valuesy.get()), 1);
 
   solver->apply(gko::initialize<Vec>({alpha}, exec), gko_x,
