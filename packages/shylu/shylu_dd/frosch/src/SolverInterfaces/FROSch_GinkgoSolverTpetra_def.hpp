@@ -273,9 +273,12 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
 
   // extract execution space of the vectors
   using execution_space = typename XMap::local_map_type::execution_space;
+  using memory_space = typename XMap::local_map_type::memory_space;
 
-  auto exec = create_executor(execution_space{});
+  auto exec = create_executor(execution_space{}, memory_space{});
   auto host_exec = exec->get_master();
+
+  std::cout << "Executor type: " << typeid(*exec).name() << std::endl;
 
   ArrayRCP<const SC> valuesx = x.getData(0);
   using Vec = gko::matrix::Dense<SC>;
