@@ -285,16 +285,18 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
       << typeid(Tpetra::KokkosClassic::DefaultNode::DefaultNodeType).name()
       << std::endl;
 
-  ArrayRCP<const SC> valuesx = x.getData(0);
+  auto tpetrax = dynamic_cast<const XTMultiVector &>(x);
+  auto viewx = tpetrax.getDeviceLocalView(Access::ReadOnly);
   using Vec = gko::matrix::Dense<SC>;
   auto gko_x = Vec::create_const(
-      exec, gko::dim<2>{valuesx.size(), 1},
-      gko::make_const_array_view(host_exec, valuesx.size(), valuesx.get()), 1);
+      exec, gko::dim<2>{viewx.size(), 1},
+      gko::make_const_array_view(exec, viewx.size(), viewx.data()), 1);
 
-  ArrayRCP<SC> valuesy = y.getDataNonConst(0);
-  auto gko_y = Vec::create(
-      exec, gko::dim<2>{valuesy.size(), 1},
-      gko::make_array_view(host_exec, valuesy.size(), valuesy.get()), 1);
+  auto tpetray = dynamic_cast<const XTMultiVector &>(y);
+  auto viewy = tpetray.getDeviceLocalView(Access::ReadWrite);
+  auto gko_y =
+      Vec::create(exec, gko::dim<2>{viewy.size(), 1},
+                  gko::make_array_view(exec, viewy.size(), viewy.data()), 1);
 
   solver->apply(gko::initialize<Vec>({alpha}, exec), gko_x,
                 gko::initialize<Vec>({beta}, exec), gko_y);

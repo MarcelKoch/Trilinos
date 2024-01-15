@@ -72,6 +72,8 @@ protected:
   using ConstXMultiVectorPtr =
       typename Solver<SC, LO, GO, NO>::ConstXMultiVectorPtr;
 
+  using XTMultiVector = Xpetra::TpetraMultiVector<SC, LO, GO, NO>;
+
   using XMultiVectorFactory =
       typename Solver<SC, LO, GO, NO>::XMultiVectorFactory;
 
