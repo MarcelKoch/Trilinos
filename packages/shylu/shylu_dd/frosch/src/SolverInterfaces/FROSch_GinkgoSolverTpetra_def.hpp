@@ -279,6 +279,11 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
   auto host_exec = exec->get_master();
 
   std::cout << "Executor type: " << typeid(*exec).name() << std::endl;
+  std::cout << "Memory Space: " << typeid(memory_space).name() << std::endl;
+  std::cout
+      << "NO: "
+      << typeid(Tpetra::KokkosClassic::DefaultNode::DefaultNodeType).name()
+      << std::endl;
 
   ArrayRCP<const SC> valuesx = x.getData(0);
   using Vec = gko::matrix::Dense<SC>;
