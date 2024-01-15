@@ -332,7 +332,9 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
     }
   }
 
-  auto exec = gko::ReferenceExecutor::create();
+  using execution_space = typename XMap::local_map_type::execution_space;
+  using memory_space = typename XMap::local_map_type::memory_space;
+  auto exec = create_executor(execution_space{}, memory_space{});
 
   using Mtx = gko::matrix::Csr<SC, LO>;
   auto mK = gko::share(Mtx::create(exec));
