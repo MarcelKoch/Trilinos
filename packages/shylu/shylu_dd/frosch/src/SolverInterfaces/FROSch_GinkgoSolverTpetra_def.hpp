@@ -278,13 +278,6 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
   auto exec = create_executor(execution_space{}, memory_space{});
   auto host_exec = exec->get_master();
 
-  std::cout << "Executor type: " << typeid(*exec).name() << std::endl;
-  std::cout << "Memory Space: " << typeid(memory_space).name() << std::endl;
-  std::cout
-      << "NO: "
-      << typeid(Tpetra::KokkosClassic::DefaultNode::DefaultNodeType).name()
-      << std::endl;
-
   auto tpetrax = dynamic_cast<const XTMultiVector &>(x);
   auto viewx = tpetrax.getDeviceLocalView(Access::ReadOnly);
   using Vec = gko::matrix::Dense<SC>;
