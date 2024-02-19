@@ -319,7 +319,7 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
                   static_cast<gko::size_type>(host_k.numCols())}};
   mdK.nonzeros.reserve(host_k.nnz());
   for (LO i = 0; i < host_k.numRows(); i++) {
-    const auto& row = host_k.row(i);
+    const auto &row = host_k.row(i);
     for (LO j = 0; j < row.length; j++) {
       mdK.nonzeros.emplace_back(i, row.colidx(j), row.value(j));
     }
