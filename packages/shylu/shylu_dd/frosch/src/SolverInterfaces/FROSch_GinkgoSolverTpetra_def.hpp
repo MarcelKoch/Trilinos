@@ -44,13 +44,10 @@
 
 #include <FROSch_GinkgoSolverTpetra_decl.hpp>
 
-namespace FROSch {
-
-using namespace Stratimikos;
-using namespace Teuchos;
-using namespace Thyra;
-using namespace Xpetra;
-
+#if GKO_VERSION_MAJOR * 1000 + GKO_VERSION_MINOR * 10 < 1080
+namespace gko {
+namespace ext {
+namespace kokkos {
 namespace detail {
 
 /**
@@ -130,20 +127,16 @@ inline bool check_compatibility(MemorySpace, std::shared_ptr<const ExecType>) {
  * @return  An executor of type either ReferenceExecutor or OmpExecutor.
  */
 inline std::shared_ptr<gko::Executor> create_default_host_executor() {
-  static std::mutex mutex{};
-  std::lock_guard<std::mutex> guard(mutex);
 #ifdef KOKKOS_ENABLE_SERIAL
   if constexpr (std::is_same_v<Kokkos::DefaultHostExecutionSpace,
                                Kokkos::Serial>) {
-    static auto exec = gko::ReferenceExecutor::create();
-    return exec;
+    return gko::ReferenceExecutor::create();
   }
 #endif
 #ifdef KOKKOS_ENABLE_OPENMP
   if constexpr (std::is_same_v<Kokkos::DefaultHostExecutionSpace,
                                Kokkos::OpenMP>) {
-    static auto exec = gko::OmpExecutor::create();
-    return exec;
+    return gko::OmpExecutor::create();
   }
 #endif
   GKO_NOT_IMPLEMENTED;
@@ -171,8 +164,6 @@ template <typename ExecSpace,
 inline std::shared_ptr<gko::Executor> create_executor(ExecSpace ex,
                                                       MemorySpace = {}) {
   static_assert(Kokkos::SpaceAccessibility<ExecSpace, MemorySpace>::accessible);
-  static std::mutex mutex{};
-  std::lock_guard<std::mutex> guard(mutex);
 #ifdef KOKKOS_ENABLE_SERIAL
   if constexpr (std::is_same_v<ExecSpace, Kokkos::Serial>) {
     return gko::ReferenceExecutor::create();
@@ -247,6 +238,18 @@ create_default_executor(Kokkos::DefaultExecutionSpace ex = {}) {
   return create_executor(std::move(ex));
 }
 
+} // namespace kokkos
+} // namespace ext
+} // namespace gko
+#endif
+
+namespace FROSch {
+
+using namespace Stratimikos;
+using namespace Teuchos;
+using namespace Thyra;
+using namespace Xpetra;
+
 template <class SC, class LO, class GO, class NO>
 int GinkgoSolver<SC, LO, GO, NO>::initialize() {
   FROSCH_TIMER_START_SOLVER(initializeTime, "GinkgoSolver::initialize");
@@ -270,13 +273,6 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
                                          SC beta) const {
   FROSCH_TIMER_START_SOLVER(applyTime, "GinkgoSolver::apply");
   FROSCH_ASSERT(this->IsComputed_, "FROSch::GinkgoSolver: !this->IsComputed_.");
-
-  // extract execution space of the vectors
-  using execution_space = typename XMap::local_map_type::execution_space;
-  using memory_space = typename XMap::local_map_type::memory_space;
-
-  auto exec = create_executor(execution_space{}, memory_space{});
-  auto host_exec = exec->get_master();
 
   auto tpetrax = dynamic_cast<const XTMultiVector &>(x);
   auto viewx = tpetrax.getDeviceLocalView(Access::ReadOnly);
@@ -310,8 +306,12 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
   FROSCH_TIMER_START_SOLVER(GinkgoSolverTime, "GinkgoSolver::GinkgoSolver");
   FROSCH_ASSERT(!this->K_.is_null(), "FROSch::GinkgoSolver: K_ is null.");
 
-  const CrsMatrixWrap<SC, LO, GO, NO> &crsOp =
-      dynamic_cast<const CrsMatrixWrap<SC, LO, GO, NO> &>(*this->K_);
+  // extract execution space of the vectors
+  using execution_space = typename XMap::local_map_type::execution_space;
+  using memory_space = typename XMap::local_map_type::memory_space;
+
+  exec = gko::ext::kokkos::create_executor(execution_space{}, memory_space{});
+  auto host_exec = exec->get_master();
 
   gko::matrix_assembly_data<SC, LO> mdK{
       gko::dim<2>{this->K_->getLocalNumRows(),
@@ -325,23 +325,14 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
     }
   }
 
-  using execution_space = typename XMap::local_map_type::execution_space;
-  using memory_space = typename XMap::local_map_type::memory_space;
-  auto exec = create_executor(execution_space{}, memory_space{});
-
   using Mtx = gko::matrix::Csr<SC, LO>;
   auto mK = gko::share(Mtx::create(exec));
   mK->read(mdK.get_ordered_data());
 
-  using Cg = gko::solver::Cg<SC>;
-  using Jac = gko::preconditioner::Jacobi<SC>;
+  using Lu = gko::experimental::factorization::Lu<SC, LO>;
+  using Direct = gko::experimental::solver::Direct<SC, LO>;
   solver =
-      Cg::build()
-          .with_preconditioner(Jac::build().with_max_block_size(1u).on(exec))
-          .with_criteria(
-              gko::stop::Iteration::build().with_max_iters(1000u).on(exec))
-          .on(exec)
-          ->generate(mK);
+      Direct::build().with_factorization(Lu::build()).on(exec)->generate(mK);
 }
 
 } // namespace FROSch
