@@ -118,6 +118,9 @@ protected:
   mutable XMultiVectorPtr YX_ = null;
   mutable MultiVectorBasePtr YT_ = null;
 
+  std::shared_ptr<gko::Executor> exec;
+
+  std::shared_ptr<gko::matrix::Csr<SC, LO>> mtx = nullptr;
   std::shared_ptr<gko::LinOp> solver = nullptr;
 
   friend class SolverFactory<SC, LO, GO, NO>;
