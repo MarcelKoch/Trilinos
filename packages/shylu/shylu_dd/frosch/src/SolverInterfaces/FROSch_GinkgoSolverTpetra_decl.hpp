@@ -87,11 +87,13 @@ protected:
   using LinearOpWithSolveFactoryBasePtr = RCP<LinearOpWithSolveFactoryBase<SC>>;
 
 public:
+  ~GinkgoSolver() override;
+
   //! Initialize the internal solver
-  virtual int initialize();
+  int initialize() override;
 
   //! Compute the internal solver
-  virtual int compute();
+  int compute() override;
 
   /*!
   \brief Computes the operator-multivector application.
@@ -106,9 +108,9 @@ public:
   */
   void apply(const XMultiVector &x, XMultiVector &y, ETransp mode = NO_TRANS,
              SC alpha = ScalarTraits<SC>::one(),
-             SC beta = ScalarTraits<SC>::zero()) const;
+             SC beta = ScalarTraits<SC>::zero()) const override;
 
-  int updateMatrix(ConstXMatrixPtr k, bool reuseInitialize = false);
+  int updateMatrix(ConstXMatrixPtr k, bool reuseInitialize = false) override;
 
 protected:
   //! Constructor

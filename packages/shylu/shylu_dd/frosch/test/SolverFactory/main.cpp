@@ -192,6 +192,8 @@ int main(int argc, char *argv[])
         twoLevelPreconditionerList->set("DofOrdering Vector",dofOrderings);
         twoLevelPreconditionerList->set("DofsPerNode Vector",dofsPerNodeVector);
         twoLevelPreconditionerList->set("Repeated Map Vector",RepeatedMaps);
+        twoLevelPreconditionerList->set("M", GO(M));
+        twoLevelPreconditionerList->set("N", GO(N));
 
         Comm->barrier();
         if (Comm->getRank()==0) {

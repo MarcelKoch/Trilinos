@@ -274,6 +274,8 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
   FROSCH_TIMER_START_SOLVER(applyTime, "GinkgoSolver::apply");
   FROSCH_ASSERT(this->IsComputed_, "FROSch::GinkgoSolver: !this->IsComputed_.");
 
+  Teuchos::TimeMonitor::getStackedTimer()->start("Ginkgo Solver - Apply");
+
   auto tpetrax = dynamic_cast<const XTMultiVector &>(x);
   auto viewx = tpetrax.getDeviceLocalView(Access::ReadOnly);
   using Vec = gko::matrix::Dense<SC>;
@@ -289,6 +291,8 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
 
   solver->apply(gko::initialize<Vec>({alpha}, exec), gko_x,
                 gko::initialize<Vec>({beta}, exec), gko_y);
+
+  Teuchos::TimeMonitor::getStackedTimer()->stop("Ginkgo Solver - Apply");
 }
 
 template <class SC, class LO, class GO, class NO>
@@ -306,14 +310,25 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
   FROSCH_TIMER_START_SOLVER(GinkgoSolverTime, "GinkgoSolver::GinkgoSolver");
   FROSCH_ASSERT(!this->K_.is_null(), "FROSch::GinkgoSolver: K_ is null.");
 
+  Teuchos::TimeMonitor::getStackedTimer()->start("Ginkgo Solver - Creation");
+
   // extract execution space of the vectors
   using execution_space = typename XMap::local_map_type::execution_space;
   using memory_space = typename XMap::local_map_type::memory_space;
 
   exec = gko::ext::kokkos::create_executor(execution_space{}, memory_space{});
-  auto host_exec = exec->get_master();
+  exec->add_logger(
+      gko::log::ProfilerHook::create_summary(std::make_shared<gko::HipTimer>(
+          std::dynamic_pointer_cast<gko::HipExecutor>(exec))));
 
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo Solver - Creation - Copy to Host");
   auto host_k = k->getLocalMatrixHost();
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Creation - Copy to Host");
+
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo Solver - Creation - Matrix Data");
   gko::matrix_data<SC, LO> mdK{
       gko::dim<2>{static_cast<gko::size_type>(host_k.numRows()),
                   static_cast<gko::size_type>(host_k.numCols())}};
@@ -324,15 +339,28 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
       mdK.nonzeros.emplace_back(i, row.colidx(j), row.value(j));
     }
   }
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Creation - Matrix Data");
 
   using Mtx = gko::matrix::Csr<SC, LO>;
   auto mK = gko::share(Mtx::create(exec));
   mK->read(std::move(mdK));
 
-  using Lu = gko::experimental::factorization::Lu<SC, LO>;
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo´ Solver - Creation - Factorization");
+  using Lu = gko::experimental::factorization::Cholesky<SC, LO>;
   using Direct = gko::experimental::solver::Direct<SC, LO>;
   solver =
       Direct::build().with_factorization(Lu::build()).on(exec)->generate(mK);
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Creation - Factorization");
+
+  Teuchos::TimeMonitor::getStackedTimer()->stop("Ginkgo Solver - Creation");
+}
+
+template <class SC, class LO, class GO, class NO>
+GinkgoSolver<SC, LO, GO, NO>::~GinkgoSolver() {
+  exec->clear_loggers();
 }
 
 } // namespace FROSch
