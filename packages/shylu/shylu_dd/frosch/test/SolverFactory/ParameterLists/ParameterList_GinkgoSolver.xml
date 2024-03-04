@@ -1,3 +1,7 @@
 <ParameterList name="Solver Factory Example">
     <Parameter name="SolverType" type="string" value="GinkgoSolver"/>
+    <ParameterList name="GinkgoSolver">
+        <Parameter name="Reordering" type="string" value="amd"></Parameter>
+        <Parameter name="SymbolicType" type="string" value="near_symmetric"></Parameter>
+    </ParameterList>
 </ParameterList>

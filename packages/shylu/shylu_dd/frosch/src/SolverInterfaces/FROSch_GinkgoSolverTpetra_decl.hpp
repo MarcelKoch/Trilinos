@@ -125,6 +125,13 @@ protected:
   std::shared_ptr<gko::matrix::Csr<SC, LO>> mtx = nullptr;
   std::shared_ptr<gko::LinOp> solver = nullptr;
 
+  using Permutation = gko::matrix::Permutation<LO>;
+  std::shared_ptr<Permutation> perm = nullptr;
+
+  using Vec = gko::matrix::Dense<SC>;
+  gko::detail::DenseCache<SC> reordered_in;
+  gko::detail::DenseCache<SC> reordered_out;
+
   friend class SolverFactory<SC, LO, GO, NO>;
 };
 

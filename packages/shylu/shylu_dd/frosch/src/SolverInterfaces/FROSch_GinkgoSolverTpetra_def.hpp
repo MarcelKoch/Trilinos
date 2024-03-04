@@ -278,20 +278,35 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
 
   auto tpetrax = dynamic_cast<const XTMultiVector &>(x);
   auto viewx = tpetrax.getDeviceLocalView(Access::ReadOnly);
-  using Vec = gko::matrix::Dense<SC>;
   auto gko_x = Vec::create_const(
       exec, gko::dim<2>{viewx.size(), 1},
       gko::make_const_array_view(exec, viewx.size(), viewx.data()), 1);
+  auto in_ptr = gko_x.get();
+  if (perm) {
+    reordered_in.init_from(gko_x.get());
+    gko_x->permute(perm, reordered_in.get(), gko::matrix::permute_mode::rows);
+    in_ptr = reordered_in.get();
+  }
 
   auto tpetray = dynamic_cast<const XTMultiVector &>(y);
   auto viewy = tpetray.getDeviceLocalView(Access::ReadWrite);
   auto gko_y =
       Vec::create(exec, gko::dim<2>{viewy.size(), 1},
                   gko::make_array_view(exec, viewy.size(), viewy.data()), 1);
+  auto out_ptr = gko_y.get();
+  if (perm) {
+    reordered_out.init_from(gko_y.get());
+    out_ptr = reordered_out.get();
+  }
 
-  solver->apply(gko::initialize<Vec>({alpha}, exec), gko_x,
-                gko::initialize<Vec>({beta}, exec), gko_y);
+  solver->apply(gko::initialize<Vec>({alpha}, exec), in_ptr,
+                gko::initialize<Vec>({beta}, exec), out_ptr);
+  if (perm) {
+    reordered_out->permute(perm, gko_y,
+                           gko::matrix::permute_mode::inverse_rows);
+  }
 
+  exec->synchronize();
   Teuchos::TimeMonitor::getStackedTimer()->stop("Ginkgo Solver - Apply");
 }
 
@@ -309,6 +324,7 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
     : Solver<SC, LO, GO, NO>(k, parameterList, description) {
   FROSCH_TIMER_START_SOLVER(GinkgoSolverTime, "GinkgoSolver::GinkgoSolver");
   FROSCH_ASSERT(!this->K_.is_null(), "FROSch::GinkgoSolver: K_ is null.");
+  auto gko_parameter_list = parameterList->sublist("GinkgoSolver");
 
   Teuchos::TimeMonitor::getStackedTimer()->start("Ginkgo Solver - Creation");
 
@@ -317,9 +333,6 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
   using memory_space = typename XMap::local_map_type::memory_space;
 
   exec = gko::ext::kokkos::create_executor(execution_space{}, memory_space{});
-  exec->add_logger(
-      gko::log::ProfilerHook::create_summary(std::make_shared<gko::HipTimer>(
-          std::dynamic_pointer_cast<gko::HipExecutor>(exec))));
 
   Teuchos::TimeMonitor::getStackedTimer()->start(
       "Ginkgo Solver - Creation - Copy to Host");
@@ -343,15 +356,51 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
       "Ginkgo Solver - Creation - Matrix Data");
 
   using Mtx = gko::matrix::Csr<SC, LO>;
-  auto mK = gko::share(Mtx::create(exec));
-  mK->read(std::move(mdK));
+  mtx = Mtx::create(exec);
+  mtx->read(std::move(mdK));
 
   Teuchos::TimeMonitor::getStackedTimer()->start(
-      "Ginkgo´ Solver - Creation - Factorization");
-  using Lu = gko::experimental::factorization::Cholesky<SC, LO>;
+      "Ginkgo Solver - Creation - Factorization");
+  using Lu = gko::experimental::factorization::Lu<SC, LO>;
   using Direct = gko::experimental::solver::Direct<SC, LO>;
-  solver =
-      Direct::build().with_factorization(Lu::build()).on(exec)->generate(mK);
+
+  auto reordering_str = gko_parameter_list.get("Reordering", "none");
+  if (reordering_str == "none") {
+    perm = nullptr;
+  } else if (reordering_str == "rcm") {
+    perm = gko::experimental::reorder::Rcm<LO>::build().on(exec)->generate(mtx);
+  } else if (reordering_str == "amd") {
+    perm = gko::experimental::reorder::Amd<LO>::build().on(exec)->generate(mtx);
+  } else {
+    FROSCH_ASSERT(false, "FROSch::GinkgoSolver: unknown Ginkgo reordering "
+                         "requested: " +
+                             reordering_str);
+  }
+
+  if (perm) {
+    mtx = mtx->permute(perm);
+  }
+
+  auto symbolic_type_str = gko_parameter_list.get("SymbolicType", "general");
+  gko::experimental::factorization::symbolic_type symbolic_type;
+  if (symbolic_type_str == "general") {
+    symbolic_type = gko::experimental::factorization::symbolic_type::general;
+  } else if (symbolic_type_str == "near_symmetric") {
+    symbolic_type =
+        gko::experimental::factorization::symbolic_type::near_symmetric;
+  } else if (symbolic_type_str == "symmetric") {
+    symbolic_type = gko::experimental::factorization::symbolic_type::symmetric;
+  } else {
+    FROSCH_ASSERT(false, "FROSch::GinkgoSolver: unknown Ginkgo symbolic "
+                         "factorization type requested: " +
+                             reordering_str);
+  }
+  solver = Direct::build()
+               .with_factorization(
+                   Lu::build().with_symbolic_algorithm(symbolic_type))
+               .on(exec)
+               ->generate(mtx);
+  exec->synchronize();
   Teuchos::TimeMonitor::getStackedTimer()->stop(
       "Ginkgo Solver - Creation - Factorization");
 
