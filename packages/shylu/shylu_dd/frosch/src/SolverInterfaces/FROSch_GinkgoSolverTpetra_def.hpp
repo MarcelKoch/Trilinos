@@ -323,8 +323,8 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
   auto tpetrax = dynamic_cast<const XTMultiVector &>(x);
   auto viewx = tpetrax.getDeviceLocalView(Access::ReadOnly);
   auto gko_x = Vec::create_const(
-      exec, gko::dim<2>{viewx.size(), 1},
-      gko::make_const_array_view(exec, viewx.size(), viewx.data()), 1);
+      exec, gko::dim<2>{viewx.extent(0), viewx.extent(1)},
+      gko::make_const_array_view(exec, viewx.size(), viewx.data()), viewx.stride(0));
   auto in_ptr = gko_x.get();
   if (perm) {
     reordered_in.init_from(gko_x.get());
@@ -335,8 +335,9 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
   auto tpetray = dynamic_cast<const XTMultiVector &>(y);
   auto viewy = tpetray.getDeviceLocalView(Access::ReadWrite);
   auto gko_y =
-      Vec::create(exec, gko::dim<2>{viewy.size(), 1},
-                  gko::make_array_view(exec, viewy.size(), viewy.data()), 1);
+      Vec::create(exec, gko::dim<2>{viewy.extent(0), viewy.extent(1)},
+                  gko::make_array_view(exec, viewy.size(), viewy.data()),
+                  viewy.stride(0));
   auto out_ptr = gko_y.get();
   if (perm) {
     reordered_out.init_from(gko_y.get());
