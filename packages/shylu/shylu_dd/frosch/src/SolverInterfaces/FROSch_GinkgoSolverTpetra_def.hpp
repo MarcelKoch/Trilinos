@@ -263,6 +263,50 @@ int GinkgoSolver<SC, LO, GO, NO>::compute() {
   FROSCH_TIMER_START_SOLVER(computeTime, "GinkgoSolver::compute");
   FROSCH_ASSERT(this->IsInitialized_,
                 "FROSch::GinkgoSolver: !this->IsInitialized_");
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo Solver - Compute");
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo Solver - Compute - Copy to Host");
+  auto host_k = this->K_->getLocalMatrixHost();
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Compute - Copy to Host");
+
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo Solver - Compute - Matrix Data");
+  gko::matrix_data<SC, LO> mdK{
+      gko::dim<2>{static_cast<gko::size_type>(host_k.numRows()),
+                  static_cast<gko::size_type>(host_k.numCols())}};
+  mdK.nonzeros.reserve(host_k.nnz());
+  for (LO i = 0; i < host_k.numRows(); i++) {
+    const auto &row = host_k.row(i);
+    for (LO j = 0; j < row.length; j++) {
+      mdK.nonzeros.emplace_back(i, row.colidx(j), row.value(j));
+    }
+  }
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Compute - Matrix Data");
+
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo Solver - Compute - Matrix Creation");
+  using Mtx = gko::matrix::Csr<SC, LO>;
+  mtx = Mtx::create(exec);
+  mtx->read(std::move(mdK));
+  if (perm_factory) {
+    perm = gko::as<Permutation>(perm_factory->generate(mtx));
+    mtx = mtx->permute(perm);
+  }
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Compute - Matrix Creation");
+
+  Teuchos::TimeMonitor::getStackedTimer()->start(
+      "Ginkgo Solver - Compute - Factorization");
+  solver = solver_factory->generate(mtx);
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Compute - Factorization");
+
+  Teuchos::TimeMonitor::getStackedTimer()->stop(
+      "Ginkgo Solver - Compute");
+
   this->IsComputed_ = true;
   return 0;
 }
@@ -334,51 +378,17 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
 
   exec = gko::ext::kokkos::create_executor(execution_space{}, memory_space{});
 
-  Teuchos::TimeMonitor::getStackedTimer()->start(
-      "Ginkgo Solver - Creation - Copy to Host");
-  auto host_k = k->getLocalMatrixHost();
-  Teuchos::TimeMonitor::getStackedTimer()->stop(
-      "Ginkgo Solver - Creation - Copy to Host");
-
-  Teuchos::TimeMonitor::getStackedTimer()->start(
-      "Ginkgo Solver - Creation - Matrix Data");
-  gko::matrix_data<SC, LO> mdK{
-      gko::dim<2>{static_cast<gko::size_type>(host_k.numRows()),
-                  static_cast<gko::size_type>(host_k.numCols())}};
-  mdK.nonzeros.reserve(host_k.nnz());
-  for (LO i = 0; i < host_k.numRows(); i++) {
-    const auto &row = host_k.row(i);
-    for (LO j = 0; j < row.length; j++) {
-      mdK.nonzeros.emplace_back(i, row.colidx(j), row.value(j));
-    }
-  }
-  Teuchos::TimeMonitor::getStackedTimer()->stop(
-      "Ginkgo Solver - Creation - Matrix Data");
-
-  using Mtx = gko::matrix::Csr<SC, LO>;
-  mtx = Mtx::create(exec);
-  mtx->read(std::move(mdK));
-
-  Teuchos::TimeMonitor::getStackedTimer()->start(
-      "Ginkgo Solver - Creation - Factorization");
-  using Lu = gko::experimental::factorization::Lu<SC, LO>;
-  using Direct = gko::experimental::solver::Direct<SC, LO>;
-
   auto reordering_str = gko_parameter_list.get("Reordering", "none");
-  if (reordering_str == "none") {
-    perm = nullptr;
+  if(reordering_str == "none") {
+    perm_factory = nullptr;
   } else if (reordering_str == "rcm") {
-    perm = gko::experimental::reorder::Rcm<LO>::build().on(exec)->generate(mtx);
+    perm_factory = gko::experimental::reorder::Rcm<LO>::build().on(exec);
   } else if (reordering_str == "amd") {
-    perm = gko::experimental::reorder::Amd<LO>::build().on(exec)->generate(mtx);
+    perm_factory = gko::experimental::reorder::Amd<LO>::build().on(exec);
   } else {
     FROSCH_ASSERT(false, "FROSch::GinkgoSolver: unknown Ginkgo reordering "
                          "requested: " +
                              reordering_str);
-  }
-
-  if (perm) {
-    mtx = mtx->permute(perm);
   }
 
   auto symbolic_type_str = gko_parameter_list.get("SymbolicType", "general");
@@ -395,15 +405,15 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
                          "factorization type requested: " +
                              reordering_str);
   }
-  solver = Direct::build()
+
+  using Lu = gko::experimental::factorization::Lu<SC, LO>;
+  using Direct = gko::experimental::solver::Direct<SC, LO>;
+  solver_factory = Direct::build()
                .with_factorization(
                    Lu::build().with_symbolic_algorithm(symbolic_type))
-               .on(exec)
-               ->generate(mtx);
-  exec->synchronize();
-  Teuchos::TimeMonitor::getStackedTimer()->stop(
-      "Ginkgo Solver - Creation - Factorization");
+               .on(exec);
 
+  exec->synchronize();
   Teuchos::TimeMonitor::getStackedTimer()->stop("Ginkgo Solver - Creation");
 }
 

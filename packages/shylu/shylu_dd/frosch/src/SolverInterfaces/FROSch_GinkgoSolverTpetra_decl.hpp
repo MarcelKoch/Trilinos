@@ -128,6 +128,9 @@ protected:
   using Permutation = gko::matrix::Permutation<LO>;
   std::shared_ptr<Permutation> perm = nullptr;
 
+  std::shared_ptr<gko::LinOpFactory> solver_factory;
+  std::shared_ptr<gko::LinOpFactory> perm_factory;
+
   using Vec = gko::matrix::Dense<SC>;
   gko::detail::DenseCache<SC> reordered_in;
   gko::detail::DenseCache<SC> reordered_out;
