@@ -39,11 +39,8 @@
                 </ParameterList>
 
                 <ParameterList name="ExtensionSolver">
-                    <Parameter name="SolverType" type="string" value="GinkgoSolver"/>
-                    <ParameterList name="GinkgoSolver">
-                        <Parameter name="Reordering" type="string" value="amd"/>
-                        <Parameter name="SymbolicType" type="string" value="near_symmetric"/>
-                    </ParameterList>
+                    <Parameter name="SolverType" type="string" value="Amesos2"/>
+                    <Parameter name="Solver" type="string" value="Klu"/>
                 </ParameterList>
 
                 <ParameterList name="Distribution">
