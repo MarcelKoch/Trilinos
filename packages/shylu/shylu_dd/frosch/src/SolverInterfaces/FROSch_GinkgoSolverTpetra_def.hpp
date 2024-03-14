@@ -344,8 +344,14 @@ void GinkgoSolver<SC, LO, GO, NO>::apply(const XMultiVector &x, XMultiVector &y,
     out_ptr = reordered_out.get();
   }
 
-  solver->apply(gko::initialize<Vec>({alpha}, exec), in_ptr,
-                gko::initialize<Vec>({beta}, exec), out_ptr);
+  if (beta == 0.0 && alpha == 1.0){
+    solver->apply(in_ptr, out_ptr);
+  } else {
+    out_ptr->fill(0.0);
+    solver->apply(gko::initialize<Vec>({alpha}, exec), in_ptr,
+                  gko::initialize<Vec>({beta}, exec), out_ptr);
+  }
+
   if (perm) {
     reordered_out->permute(perm, gko_y,
                            gko::matrix::permute_mode::inverse_rows);
