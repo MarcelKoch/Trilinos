@@ -3,11 +3,12 @@ import argparse
 import os
 import subprocess
 import uuid
+from typing import List
 
 DIM = 3
 TARGET_SIZES = [1_000, 10_000, 100_000]
 REORDERINGS = ["none", "rcm", "amd", "metis"]
-SYM_TYPE = ["symmetric", "near_symmetric", "general"]
+SYM_TYPES = ["symmetric", "near_symmetric", "general"]
 DRY_RUN = False
 
 
@@ -107,13 +108,13 @@ def parameter_list_thyra(*, reordering="none", sym_type="general"):
 """
 
 
-def run(*, size, parameter_list, app, prefix, exe, np):
+def run(*, size, parameter_list, prefix, exe, args):
     for ts in TARGET_SIZES:
-        for reordering in REORDERINGS:
+        for reordering in args.reorderings:
             if reordering == "none" and ts == 1_000_000:
                 continue
 
-            for sym_type in SYM_TYPE:
+            for sym_type in args.sym_types:
                 if sym_type == "general" and ts == 1_000_000:
                     continue
 
@@ -123,18 +124,19 @@ def run(*, size, parameter_list, app, prefix, exe, np):
                 with open(tmp_file_name, "w") as tmp_file:
                     tmp_file.write(parameter_list(reordering=reordering, sym_type=sym_type))
 
-                args = ["mpirun", "-n", f"{np}", f"{prefix}/{exe}", f"--M={actual_size}", f"--PLIST={tmp_file_name}",
+                run_args = ["mpirun", "-n", f"{args.n}", f"{prefix}/{exe}", f"--M={actual_size}", f"--PLIST={tmp_file_name}",
                         "--USETPETRA", f"--DIM={DIM}"]
 
-                print("Running: ", args)
+                print("Running: ", run_args)
                 with open(tmp_file_name, "r") as file:
                     print(file.read())
 
                 if not DRY_RUN:
                     try:
-                        cp = subprocess.run(args, capture_output=True, universal_newlines=True, check=True)
+                        cp = subprocess.run(run_args, capture_output=True, universal_newlines=True, check=True)
 
-                        with open(build_filename(app=app, size=actual_size, reordering=reordering, sym_type=sym_type),
+                        with open(build_filename(app=args.app, np=args.n, size=actual_size, reordering=reordering,
+                                                 sym_type=sym_type),
                                   "w") as file:
                             file.write(cp.stdout)
 
@@ -148,10 +150,10 @@ def run(*, size, parameter_list, app, prefix, exe, np):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", type=int, default=0)
+    parser.add_argument("--reorderings", type=str, nargs='+', default=REORDERINGS, choices=REORDERINGS)
+    parser.add_argument("--sym-types", type=str, nargs='+', default=SYM_TYPES, choices=SYM_TYPES)
+    parser.add_argument("app", type=str, choices=["factory", "thyra"])
     parser.add_argument("--dry-run", action="store_true")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--factory", action="store_true")
-    group.add_argument("--thyra", action="store_true")
 
     args = parser.parse_args()
 
@@ -163,7 +165,7 @@ def main():
         exe = "ShyLU_DDFROSch_solverfactory.exe"
         if args.n == 0:
             args.n = 1
-        run(size=size_factory, parameter_list=parameter_list_factory, app="factory", prefix=prefix, exe=exe, np=args.n)
+        run(size=size_factory, parameter_list=parameter_list_factory, prefix=prefix, exe=exe, args=args)
 
     if args.thyra:
         prefix = "packages/shylu/shylu_dd/frosch/test/Thyra_Xpetra_Elasticity"
@@ -171,11 +173,8 @@ def main():
         if args.n == 0:
             args.n = 8
 
-        global REORDERINGS, SYM_TYPE
-        REORDERINGS = ["metis"]
-        SYM_TYPE = ["near_symmetric"]
+        run(size=size_thyra, parameter_list=parameter_list_thyra, prefix=prefix, exe=exe, args=args)
 
-        run(size=size_thyra, parameter_list=parameter_list_thyra, app="thyra", prefix=prefix, exe=exe, np=args.n)
 
 if __name__ == "__main__":
     main()
