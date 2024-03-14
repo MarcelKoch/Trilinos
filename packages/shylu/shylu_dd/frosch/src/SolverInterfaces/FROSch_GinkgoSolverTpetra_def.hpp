@@ -386,6 +386,10 @@ GinkgoSolver<SC, LO, GO, NO>::GinkgoSolver(ConstXMatrixPtr k,
     perm_factory = gko::experimental::reorder::Rcm<LO>::build().on(exec);
   } else if (reordering_str == "amd") {
     perm_factory = gko::experimental::reorder::Amd<LO>::build().on(exec);
+#if GKO_HAVE_METIS
+  } else if (reordering_str == "metis") {
+    perm_factory = gko::experimental::reorder::NestedDissection<SC, LO>::build().on(exec);
+#endif
   } else {
     FROSCH_ASSERT(false, "FROSch::GinkgoSolver: unknown Ginkgo reordering "
                          "requested: " +
