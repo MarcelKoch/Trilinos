@@ -160,14 +160,14 @@ def main():
     global DRY_RUN
     DRY_RUN = args.dry_run
 
-    if args.factory:
+    if args.app == "factory":
         prefix = "packages/shylu/shylu_dd/frosch/test/SolverFactory"
         exe = "ShyLU_DDFROSch_solverfactory.exe"
         if args.n == 0:
             args.n = 1
         run(size=size_factory, parameter_list=parameter_list_factory, prefix=prefix, exe=exe, args=args)
 
-    if args.thyra:
+    if args.app == "thyra":
         prefix = "packages/shylu/shylu_dd/frosch/test/Thyra_Xpetra_Elasticity"
         exe = "ShyLU_DDFROSch_thyra_xpetra_elasticity.exe"
         if args.n == 0:
